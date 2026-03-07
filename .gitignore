@@ -1,0 +1,23 @@
+# Node
+node_modules/
+.npm
+frontend/dist/
+frontend/.eslintcache
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+backend/database.db
+backend/instance/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
