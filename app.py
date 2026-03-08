@@ -131,6 +131,20 @@ with st.sidebar.form("expense_form", clear_on_submit=True):
             st.success(f"Added ₹{amount} for {final_cat}")
             st.rerun() # Refresh data
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("Danger Zone")
+# We use a confirmation checkbox to prevent accidental deletions
+confirm_delete = st.sidebar.checkbox("I want to delete all data")
+if st.sidebar.button("🗑️ Delete All Data & Start Fresh", disabled=not confirm_delete):
+    try:
+        session.query(Expense).delete()
+        session.commit()
+        st.sidebar.success("All data cleared successfully!")
+        st.rerun()
+    except Exception as e:
+        session.rollback()
+        st.sidebar.error(f"Error clearing data: {e}")
+
 # --- MAIN DASHBOARD ---
 expenses = get_all_expenses()
 
