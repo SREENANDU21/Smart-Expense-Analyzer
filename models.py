@@ -9,6 +9,7 @@ class Expense(Base):
     __tablename__ = 'expense'
     
     id = Column(Integer, primary_key=True)
+    business_name = Column(String(100), nullable=False, default="Main Business")
     date = Column(Date, nullable=False, default=datetime.utcnow)
     amount = Column(Float, nullable=False)
     category = Column(String(50), nullable=False)

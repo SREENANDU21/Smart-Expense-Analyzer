@@ -29,8 +29,16 @@ st.title("💸 Smart Expense Analyzer")
 session = Session()
 
 # --- HELPER FUNCTIONS ---
-def get_all_expenses():
-    return session.query(Expense).order_by(Expense.date.desc()).all()
+def get_businesses():
+    businesses = session.query(Expense.business_name).distinct().all()
+    # Always ensure at least one default
+    b_list = [b[0] for b in businesses if b[0]]
+    if "Main Business" not in b_list:
+        b_list.append("Main Business")
+    return sorted(b_list)
+
+def get_all_expenses(business_name):
+    return session.query(Expense).filter(Expense.business_name == business_name).order_by(Expense.date.desc()).all()
 
 def calculate_prediction(expenses):
     if not expenses:
@@ -93,17 +101,37 @@ def calculate_prediction(expenses):
         
     return predicted_amount, "Linear Regression Forecast"
 
+# --- SIDEBAR: BUSINESS SELECTION ---
+st.sidebar.header("🏢 Business Profile")
+
+# Get existing businesses
+existing_businesses = get_businesses()
+
+# Let user select or create a new business
+selected_business = st.sidebar.selectbox("Select Business", existing_businesses)
+
+with st.sidebar.expander("➕ Create New Business Profile"):
+    new_biz_name = st.text_input("New Business Name")
+    if st.button("Create Profile"):
+        if new_biz_name and new_biz_name not in existing_businesses:
+            # We add a dummy expense worth 0 to register the name in the DB
+            dummy = Expense(amount=0.0, category="Miscellaneous", description="Profile created", business_name=new_biz_name)
+            session.add(dummy)
+            session.commit()
+            st.success(f"Created {new_biz_name}!")
+            st.rerun()
+        elif new_biz_name in existing_businesses:
+            st.warning("Business already exists.")
+
+st.sidebar.markdown("---")
+
 # --- SIDEBAR: ENTRY FORM ---
-st.sidebar.header("Add New Expense")
+st.sidebar.header(f"Add Expense: {selected_business}")
 
 with st.sidebar.form("expense_form", clear_on_submit=True):
     expense_date = st.date_input("Date", date.today())
     amount = st.number_input("Amount (₹)", min_value=0.01, step=10.0, format="%.2f")
     description = st.text_input("Description (e.g. Van diesel)")
-    
-    # We use a session state variable to store the classified category if available
-    # but normally the user chooses it or relies on AI.
-    # In Streamlit, real-time "on-blur" is hard within a form, so we let the user know AI will classify it if left as blank
     
     category = st.selectbox(
         "Category", 
@@ -121,6 +149,7 @@ with st.sidebar.form("expense_form", clear_on_submit=True):
                 final_cat = predict_category(description)
                 
             new_expense = Expense(
+                business_name=selected_business,
                 date=expense_date,
                 amount=amount,
                 category=final_cat,
@@ -128,25 +157,27 @@ with st.sidebar.form("expense_form", clear_on_submit=True):
             )
             session.add(new_expense)
             session.commit()
-            st.success(f"Added ₹{amount} for {final_cat}")
+            st.success(f"Added ₹{amount} for {final_cat} in {selected_business}")
             st.rerun() # Refresh data
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Danger Zone")
-# We use a confirmation checkbox to prevent accidental deletions
-confirm_delete = st.sidebar.checkbox("I want to delete all data")
-if st.sidebar.button("🗑️ Delete All Data & Start Fresh", disabled=not confirm_delete):
+confirm_delete = st.sidebar.checkbox(f"I want to delete all data for {selected_business}")
+if st.sidebar.button(f"🗑️ Delete {selected_business} Data", disabled=not confirm_delete):
     try:
-        session.query(Expense).delete()
+        session.query(Expense).filter(Expense.business_name == selected_business).delete()
         session.commit()
-        st.sidebar.success("All data cleared successfully!")
+        st.sidebar.success(f"All data for {selected_business} cleared!")
         st.rerun()
     except Exception as e:
         session.rollback()
         st.sidebar.error(f"Error clearing data: {e}")
 
 # --- MAIN DASHBOARD ---
-expenses = get_all_expenses()
+st.header(f"📊 Dashboard: {selected_business}")
+expenses = get_all_expenses(selected_business)
+# Filter out the 0.0 dummy expenses used for profile creation
+expenses = [e for e in expenses if e.amount > 0]
 
 if not expenses:
     st.info("No expenses recorded yet. Add some using the sidebar menu!")
