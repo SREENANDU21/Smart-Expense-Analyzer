@@ -161,6 +161,50 @@ with st.sidebar.form("expense_form", clear_on_submit=True):
             st.rerun() # Refresh data
 
 st.sidebar.markdown("---")
+st.sidebar.header("✏️ Edit / Delete Expense")
+
+# Fetch expenses just for the sidebar editing feature
+sidebar_expenses = get_all_expenses(selected_business)
+sidebar_expenses = [e for e in sidebar_expenses if e.amount > 0]
+
+if sidebar_expenses:
+    expense_options = {f"{e.date.strftime('%Y-%m-%d')} - {e.description} (₹{e.amount})": e for e in sidebar_expenses}
+    selected_expense_str = st.sidebar.selectbox("Select Expense to Edit", list(expense_options.keys()))
+    selected_exp = expense_options[selected_expense_str]
+    
+    with st.sidebar.form("edit_form"):
+        new_date = st.date_input("Edit Date", selected_exp.date)
+        new_amount = st.number_input("Edit Amount (₹)", min_value=0.01, step=10.0, value=float(selected_exp.amount), format="%.2f")
+        new_desc = st.text_input("Edit Description", selected_exp.description)
+        
+        cats = ["Fuel", "Salary", "Maintenance", "Rent", "Utilities", "Miscellaneous"]
+        idx = cats.index(selected_exp.category) if selected_exp.category in cats else 0
+        new_cat = st.selectbox("Edit Category", cats, index=idx)
+        
+        col1, col2 = st.columns(2)
+        update_btn = col1.form_submit_button("Update")
+        delete_btn = col2.form_submit_button("Delete")
+        
+        if update_btn:
+            exp_to_upd = session.query(Expense).get(selected_exp.id)
+            exp_to_upd.date = new_date
+            exp_to_upd.amount = new_amount
+            exp_to_upd.description = new_desc
+            exp_to_upd.category = new_cat
+            session.commit()
+            st.success("Expense updated!")
+            st.rerun()
+            
+        if delete_btn:
+            exp_to_del = session.query(Expense).get(selected_exp.id)
+            session.delete(exp_to_del)
+            session.commit()
+            st.success("Expense deleted!")
+            st.rerun()
+else:
+    st.sidebar.info("No expenses available to edit.")
+
+st.sidebar.markdown("---")
 st.sidebar.subheader("Danger Zone")
 confirm_delete = st.sidebar.checkbox(f"I want to delete all data for {selected_business}")
 if st.sidebar.button(f"🗑️ Delete {selected_business} Data", disabled=not confirm_delete):
