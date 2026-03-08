@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: smart-expense-analyzer-api
-    env: python
-    buildCommand: "cd backend && pip install -r requirements.txt && python seed_db.py"
-    startCommand: "cd backend && gunicorn app:app"
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0

@@ -1,5 +1,4 @@
-from app import app, db
-from models import Expense
+from models import Session, Expense, Base, engine
 from datetime import datetime, timedelta
 import random
 
@@ -14,11 +13,12 @@ descriptions = {
 }
 
 def seed_database():
-    with app.app_context():
-        db.drop_all()
-        db.create_all()
-        
-        # Generate some expenses for the last 6 months
+    # Recreate tables
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    
+    session = Session()
+    try:
         today = datetime.now()
         expenses = []
         for i in range(180): # 6 months
@@ -40,10 +40,15 @@ def seed_database():
                     category=cat,
                     description=desc
                 )
-                db.session.add(expense)
+                session.add(expense)
         
-        db.session.commit()
+        session.commit()
         print("Database seeded completely!")
+    except Exception as e:
+        session.rollback()
+        print(f"Error seeding database: {e}")
+    finally:
+        session.close()
 
 if __name__ == '__main__':
     seed_database()
